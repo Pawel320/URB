@@ -8,9 +8,7 @@
     "number_of_paths" : 4,
     "path_gen_beta" : -5,
     "num_samples" : 10,
-
     "path_gen_workers": 3,
 
-
-    "observation_type": "trip_info_eta_route_congestion"
+    "observation_type": "trip_info_eta_sumo"
 }

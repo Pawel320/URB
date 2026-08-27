@@ -166,7 +166,7 @@ if __name__ == "__main__":
             },
             "machine_parameters" :{
                 "behavior" : av_behavior,
-                "observation_type" : observations
+                "observation_type" : observation_type
             }
         },
         simulator_parameters = {
@@ -213,6 +213,32 @@ if __name__ == "__main__":
     #  Mutation
     env.mutation(disable_human_learning = not should_humans_adapt, mutation_start_percentile=-1)
     print_agent_counts(env)
+
+    import sys
+    import numpy as np
+
+    res = env.reset() # Pobieramy nowy stan po dodaniu agentów RL
+    if isinstance(res, tuple):
+        obs_dict = res[0]
+    else:
+        obs_dict = res
+
+    first_agent_id = list(obs_dict.keys())[0]
+    first_obs = obs_dict[first_agent_id]
+
+    print("\n" + "="*50)
+    print("SZLIFIERKA WYMIARÓW - Dzień 1 (Po mutacji)")
+    
+    if hasattr(first_obs, 'shape'):
+        print(f"Rozmiar wektora obserwacji: {first_obs.shape}")
+    else:
+        print(f"Rozmiar wektora obserwacji: długość {len(first_obs)}")
+        
+    print(f"Surowe dane:\n{first_obs}")
+    print("="*50 + "\n")
+
+    sys.exit(0)
+    # -----------------------------
 
     
     group_agent_ids = [str(machine.id) for machine in env.machine_agents]
