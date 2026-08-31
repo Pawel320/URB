@@ -11,6 +11,7 @@ import argparse
 import ast
 import json
 import logging
+import wandb
 
 import pandas as pd
 import torch
@@ -148,6 +149,12 @@ if __name__ == "__main__":
     dump_config["script"] = script_path_for_config(__file__)
     with open(exp_config_path, 'w', encoding='utf-8') as f:
         json.dump(dump_config, f, indent=4)
+
+    wandb.init(
+        project="Reduce dimensions in a new observation class.", # np. urb-dim-reduction
+        name=f"IPPO_TORCHRL_PCA_{exp_id}",
+        config=dump_config
+    )
 
     # Initiate the traffic environment
     env = TrafficEnvironment(
@@ -440,15 +447,27 @@ if __name__ == "__main__":
 
         if step_loss_values:
             avg_loss_value = sum(step_loss_values) / len(step_loss_values)
+            avg_entropy = sum(step_loss_entropy) / len(step_loss_entropy)
+            avg_objective = sum(step_loss_objective) / len(step_loss_objective)
+            avg_critic = sum(step_loss_critic) / len(step_loss_critic)
+            
             loss_records.append(
                 {
                     "iteration": len(loss_records) + 1,
                     "loss": avg_loss_value,
-                    "loss_entropy": sum(step_loss_entropy) / len(step_loss_entropy),
-                    "loss_objective": sum(step_loss_objective) / len(step_loss_objective),
-                    "loss_critic": sum(step_loss_critic) / len(step_loss_critic),
+                    "loss_entropy": avg_entropy,
+                    "loss_objective": avg_objective,
+                    "loss_critic": avg_critic,
                 }
             )
+            # WYSYŁANIE DANYCH DO W&B
+            wandb.log({
+                "iteration": len(loss_records),
+                "loss": avg_loss_value,
+                "loss_entropy": avg_entropy,
+                "loss_objective": avg_objective,
+                "loss_critic": avg_critic,
+            })
         collector.update_policy_weights_()
         pbar.update()
     
@@ -475,3 +494,5 @@ if __name__ == "__main__":
 
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     run_metrics_analysis(exp_id, results_folder="../results")
+
+    wandb.finish()
