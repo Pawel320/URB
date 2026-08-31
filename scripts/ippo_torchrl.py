@@ -151,6 +151,7 @@ if __name__ == "__main__":
         json.dump(dump_config, f, indent=4)
 
     wandb.init(
+        entity="aintern26coexistence",
         project="Reduce dimensions in a new observation class.", # np. urb-dim-reduction
         name=f"IPPO_TORCHRL_PCA_{exp_id}",
         config=dump_config
