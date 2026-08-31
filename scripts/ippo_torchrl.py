@@ -226,18 +226,18 @@ if __name__ == "__main__":
     first_agent_id = list(obs_dict.keys())[0]
     first_obs = obs_dict[first_agent_id]
 
-    print("\n" + "="*50)
-    print("SZLIFIERKA WYMIARÓW - Dzień 1 (Po mutacji)")
+    # print("\n" + "="*50)
+    # print("SZLIFIERKA WYMIARÓW - Dzień 1 (Po mutacji)")
     
-    if hasattr(first_obs, 'shape'):
-        print(f"Rozmiar wektora obserwacji: {first_obs.shape}")
-    else:
-        print(f"Rozmiar wektora obserwacji: długość {len(first_obs)}")
+    # if hasattr(first_obs, 'shape'):
+    #     print(f"Rozmiar wektora obserwacji: {first_obs.shape}")
+    # else:
+    #     print(f"Rozmiar wektora obserwacji: długość {len(first_obs)}")
         
-    print(f"Surowe dane:\n{first_obs}")
-    print("="*50 + "\n")
+    # print(f"Surowe dane:\n{first_obs}")
+    # print("="*50 + "\n")
 
-    sys.exit(0)
+    # sys.exit(0)
     # -----------------------------
 
     
