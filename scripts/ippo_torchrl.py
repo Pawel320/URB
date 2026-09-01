@@ -461,13 +461,21 @@ if __name__ == "__main__":
                     "loss_critic": avg_critic,
                 }
             )
-            # WYSYŁANIE DANYCH DO W&B
+            # WYSYŁANIE DANYCH DO W&B (Rozszerzone o metryki ze środowiska)
+            
+            # Pobieramy najświeższe dane z loggera środowiska (jeśli epizod się zakończył)
+            current_travel_time_mean = env.logger.metrics["travel_time"][-1] if len(env.logger.metrics["travel_time"]) > 0 else 0
+            current_reward_mean = env.logger.metrics["reward"][-1] if len(env.logger.metrics["reward"]) > 0 else 0
+            
             wandb.log({
-                "iteration": len(loss_records),
-                "loss": avg_loss_value,
-                "loss_entropy": avg_entropy,
-                "loss_objective": avg_objective,
-                "loss_critic": avg_critic,
+                "step": len(loss_records),
+                "training/loss": avg_loss_value,
+                "training/manager_loss": avg_loss_value, # Jeśli masz osobnego menedżera
+                "training/travel_time_mean": current_travel_time_mean,
+                "training/reward_mean": current_reward_mean,
+                "training/loss_entropy": avg_entropy,
+                "training/loss_objective": avg_objective,
+                "training/loss_critic": avg_critic,
             })
         collector.update_policy_weights_()
         pbar.update()
@@ -495,5 +503,27 @@ if __name__ == "__main__":
 
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     run_metrics_analysis(exp_id, results_folder="../results")
+    # Generowanie ładnych wykresów z Matplotliba (Twój obrazek image_b5fc89.png)
+    run_metrics_analysis(
+        env.logger.metrics,
+        exp_id,
+        "results", 
+        True,
+        dump_config,
+    )
+
+    # Wysłanie gotowych wykresów do W&B
+    import glob
+    import os
+    plot_files = glob.glob(f"results/{exp_id}/*.png")
+    
+    if plot_files:
+        wandb_images = {}
+        for img_path in plot_files:
+            img_name = os.path.basename(img_path).replace(".png", "")
+            wandb_images[img_name] = wandb.Image(img_path)
+            
+        wandb.log(wandb_images)
+        print(f"Wysłano gotowe wykresy końcowe do W&B!")
 
     wandb.finish()
