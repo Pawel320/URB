@@ -10,8 +10,8 @@
     ],
 
     "ratio_machines" : 0.4,
-    "human_learning_episodes" : 2,
-    "test_eps" : 2,
+    "human_learning_episodes" : 200,
+    "test_eps" : 100,
     "should_humans_adapt": false,
     "av_behavior" : "selfish",
     "human_model" : "gawron",
