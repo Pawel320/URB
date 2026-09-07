@@ -461,16 +461,27 @@ if __name__ == "__main__":
                     "loss_critic": avg_critic,
                 }
             )
-            # WYSYŁANIE DANYCH DO W&B (Rozszerzone o metryki ze środowiska)
+            # --- BEZPIECZNE POBIERANIE METRYK (ODWIJANIE ŚRODOWISKA) ---
+            # Dokopujemy się do oryginalnego środowiska przez warstwy TorchRL
+            base_env = env
+            while hasattr(base_env, "env") or hasattr(base_env, "base_env"):
+                base_env = getattr(base_env, "base_env", getattr(base_env, "env", base_env))
             
-            # Pobieramy najświeższe dane z loggera środowiska (jeśli epizod się zakończył)
-            current_travel_time_mean = env.logger.metrics["travel_time"][-1] if len(env.logger.metrics["travel_time"]) > 0 else 0
-            current_reward_mean = env.logger.metrics["reward"][-1] if len(env.logger.metrics["reward"]) > 0 else 0
-            
+            try:
+                metrics_dict = base_env.logger.metrics
+                tt_list = metrics_dict.get("travel_time", [])
+                rw_list = metrics_dict.get("reward", [])
+                
+                current_travel_time_mean = tt_list[-1] if tt_list else 0
+                current_reward_mean = rw_list[-1] if rw_list else 0
+            except AttributeError:
+                current_travel_time_mean = 0
+                current_reward_mean = 0
+
+            # WYSYŁANIE DANYCH DO W&B
             wandb.log({
                 "step": len(loss_records),
                 "training/loss": avg_loss_value,
-                "training/manager_loss": avg_loss_value, # Jeśli masz osobnego menedżera
                 "training/travel_time_mean": current_travel_time_mean,
                 "training/reward_mean": current_reward_mean,
                 "training/loss_entropy": avg_entropy,
