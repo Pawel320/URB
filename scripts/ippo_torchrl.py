@@ -488,6 +488,16 @@ if __name__ == "__main__":
                 "training/loss_objective": avg_objective,
                 "training/loss_critic": avg_critic,
             })
+
+            iteration_count = len(loss_records)
+            if iteration_count % plot_every == 0:
+                try:
+                    # Rysujemy na odpakowanym środowisku bazowym
+                    base_env.plot_results()
+                    print(f"Iteracja {iteration_count}: Zapisano pośrednie wykresy do folderu plots/")
+                except Exception as e:
+                    print(f"Ostrzeżenie: Nie udało się wygenerować wykresów pośrednich - {e}")
+                    
         collector.update_policy_weights_()
         pbar.update()
     
