@@ -2,7 +2,7 @@
     "smooth_by" : 10,
     "plot_choices" : "basic",
     "save_every" : 5,
-    "plot_every" : 50,
+    "plot_every" : 10,
 
     "use_clustered_routes": true,
     "number_of_paths" : 4,

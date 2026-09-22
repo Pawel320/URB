@@ -492,25 +492,25 @@ if __name__ == "__main__":
             iteration_count = len(loss_records)
             if iteration_count % plot_every == 0:
                 try:
-                    # Rysujemy na odpakowanym środowisku bazowym
+                    # 1. Wygenerowanie nowych wykresów na dysk
                     base_env.plot_results()
-                    print(f"Iteracja {iteration_count}: Zapisano pośrednie wykresy do folderu plots/")
+                    print(f"Iteracja {iteration_count}: Wygenerowano wykresy pośrednie.")
                     
-                    # WYSYŁANIE WYKRESÓW POŚREDNICH DO W&B
-                    import glob
-                    import os
-                    # Szukamy wykresów w folderze plots (zgodnie ze strukturą z obraz_2.png)
-                    mid_plot_files = glob.glob(os.path.join(plots_folder, "*.png"))
+                    # 2. Wysłanie wykresów do W&B w stylu Feudal HRL
+                    rewards_path = os.path.join(plots_folder, "rewards.png")
+                    travel_times_path = os.path.join(plots_folder, "travel_times.png")
                     
-                    if mid_plot_files:
-                        wandb_mid_images = {}
-                        for img_path in mid_plot_files:
-                            img_name = os.path.basename(img_path).replace(".png", "")
-                            # Zapisujemy pod kluczem live_plots, aby oddzielić je w dashboardzie W&B
-                            wandb_mid_images[f"live_plots/{img_name}"] = wandb.Image(img_path)
-                            
-                        wandb.log(wandb_mid_images)
-                        print(f"Iteracja {iteration_count}: Zaktualizowano wykresy w W&B!")
+                    plots_to_log = {}
+                    if os.path.exists(rewards_path):
+                        plots_to_log["Plots/Rewards"] = wandb.Image(rewards_path)
+                    if os.path.exists(travel_times_path):
+                        plots_to_log["Plots/Travel_Times"] = wandb.Image(travel_times_path)
+                    
+                    if plots_to_log:
+                        # Przypinamy do aktualnego kroku (iteration_count), żeby osie się nie rozjechały
+                        plots_to_log["step"] = iteration_count
+                        wandb.log(plots_to_log)
+                        print(f"Iteracja {iteration_count}: Zaktualizowano wykresy na W&B!")
 
                 except Exception as e:
                     print(f"Ostrzeżenie: Nie udało się wygenerować lub wysłać wykresów pośrednich - {e}")
