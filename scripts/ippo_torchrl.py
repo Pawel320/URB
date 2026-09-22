@@ -540,12 +540,13 @@ if __name__ == "__main__":
     env.stop_simulation()
 
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
-    run_metrics_analysis(exp_id, results_folder="../results")
-    # Generowanie ładnych wykresów z Matplotliba (Twój obrazek image_b5fc89.png)
+    
+    # Generowanie ładnych wykresów z Matplotliba 
+    # (Usunięto stare wywołanie, żeby się nie dublowało, i poprawiono ścieżkę na "../results")
     run_metrics_analysis(
         env.logger.metrics,
         exp_id,
-        "results", 
+        "../results", 
         True,
         dump_config,
     )
@@ -553,7 +554,9 @@ if __name__ == "__main__":
     # Wysłanie gotowych wykresów do W&B
     import glob
     import os
-    plot_files = glob.glob(f"results/{exp_id}/*.png")
+    
+    # POPRAWKA: szukamy w ../results/ a nie results/
+    plot_files = glob.glob(f"../results/{exp_id}/*.png")
     
     if plot_files:
         wandb_images = {}
