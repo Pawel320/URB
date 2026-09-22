@@ -461,22 +461,39 @@ if __name__ == "__main__":
                     "loss_critic": avg_critic,
                 }
             )
-            # --- BEZPIECZNE POBIERANIE METRYK (ODWIJANIE ŚRODOWISKA) ---
-            # Dokopujemy się do oryginalnego środowiska przez warstwy TorchRL
+            # --- BEZPIECZNE POBIERANIE METRYK ---
+            
+            # 1. Nagroda wyciągana prosto z pamięci zebranej przez TorchRL (100% pewności)
+            try:
+                # tensordict_data to paczka z zebranymi dniami (np. 20 dni)
+                rewards_tensor = tensordict_data.get(("next", "agents", "reward"))
+                
+                # Zależnie od tego czy chcemy sumę na epizod czy średnią na krok:
+                # Tutaj bierzemy po prostu średnią nagrodę ze wszystkich agentów i kroków w batchu
+                current_reward_mean = float(rewards_tensor.mean().item())
+            except Exception as e:
+                print(f"Nie udało się pobrać nagrody z tensora: {e}")
+                current_reward_mean = 0.0
+
+            # 2. Czas przejazdu z loggera środowiska (rozszerzone szukanie kluczy)
             base_env = env
             while hasattr(base_env, "env") or hasattr(base_env, "base_env"):
                 base_env = getattr(base_env, "base_env", getattr(base_env, "env", base_env))
             
             try:
                 metrics_dict = base_env.logger.metrics
-                tt_list = metrics_dict.get("travel_time", [])
-                rw_list = metrics_dict.get("reward", [])
                 
-                current_travel_time_mean = tt_list[-1] if tt_list else 0
-                current_reward_mean = rw_list[-1] if rw_list else 0
+                # Często w routerl klucz nazywa się w liczbie mnogiej lub z prefiksem
+                if "travel_time" in metrics_dict and len(metrics_dict["travel_time"]) > 0:
+                    current_travel_time_mean = metrics_dict["travel_time"][-1]
+                elif "machine_travel_times" in metrics_dict and len(metrics_dict["machine_travel_times"]) > 0:
+                    current_travel_time_mean = metrics_dict["machine_travel_times"][-1]
+                elif "machine_travel_time" in metrics_dict and len(metrics_dict["machine_travel_time"]) > 0:
+                    current_travel_time_mean = metrics_dict["machine_travel_time"][-1]
+                else:
+                    current_travel_time_mean = 0.0
             except AttributeError:
-                current_travel_time_mean = 0
-                current_reward_mean = 0
+                current_travel_time_mean = 0.0
 
             # WYSYŁANIE DANYCH DO W&B
             wandb.log({
