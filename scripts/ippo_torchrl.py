@@ -495,8 +495,25 @@ if __name__ == "__main__":
                     # Rysujemy na odpakowanym środowisku bazowym
                     base_env.plot_results()
                     print(f"Iteracja {iteration_count}: Zapisano pośrednie wykresy do folderu plots/")
+                    
+                    # WYSYŁANIE WYKRESÓW POŚREDNICH DO W&B
+                    import glob
+                    import os
+                    # Szukamy wykresów w folderze plots (zgodnie ze strukturą z obraz_2.png)
+                    mid_plot_files = glob.glob(os.path.join(plots_folder, "*.png"))
+                    
+                    if mid_plot_files:
+                        wandb_mid_images = {}
+                        for img_path in mid_plot_files:
+                            img_name = os.path.basename(img_path).replace(".png", "")
+                            # Zapisujemy pod kluczem live_plots, aby oddzielić je w dashboardzie W&B
+                            wandb_mid_images[f"live_plots/{img_name}"] = wandb.Image(img_path)
+                            
+                        wandb.log(wandb_mid_images)
+                        print(f"Iteracja {iteration_count}: Zaktualizowano wykresy w W&B!")
+
                 except Exception as e:
-                    print(f"Ostrzeżenie: Nie udało się wygenerować wykresów pośrednich - {e}")
+                    print(f"Ostrzeżenie: Nie udało się wygenerować lub wysłać wykresów pośrednich - {e}")
                     
         collector.update_policy_weights_()
         pbar.update()
