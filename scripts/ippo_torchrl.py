@@ -480,19 +480,17 @@ if __name__ == "__main__":
             while hasattr(base_env, "env") or hasattr(base_env, "base_env"):
                 base_env = getattr(base_env, "base_env", getattr(base_env, "env", base_env))
             
+            # --- NOWY BLOK POBIERANIA CZASU PODRÓŻY ---
             try:
-                metrics_dict = base_env.logger.metrics
-                
-                # Często w routerl klucz nazywa się w liczbie mnogiej lub z prefiksem
-                if "travel_time" in metrics_dict and len(metrics_dict["travel_time"]) > 0:
-                    current_travel_time_mean = metrics_dict["travel_time"][-1]
-                elif "machine_travel_times" in metrics_dict and len(metrics_dict["machine_travel_times"]) > 0:
-                    current_travel_time_mean = metrics_dict["machine_travel_times"][-1]
-                elif "machine_travel_time" in metrics_dict and len(metrics_dict["machine_travel_time"]) > 0:
-                    current_travel_time_mean = metrics_dict["machine_travel_time"][-1]
+                # W RouteRL historie czasów podróży są zazwyczaj trzymane bezpośrednio w klasie środowiska
+                if hasattr(base_env, 'machine_travel_times') and len(base_env.machine_travel_times) > 0:
+                    current_travel_time_mean = float(base_env.machine_travel_times[-1])
+                elif hasattr(base_env, 'mean_travel_times') and len(base_env.mean_travel_times) > 0:
+                    current_travel_time_mean = float(base_env.mean_travel_times[-1])
                 else:
                     current_travel_time_mean = 0.0
-            except AttributeError:
+            except Exception as e:
+                print(f"Ostrzeżenie: Nie udało się pobrać czasu podróży: {e}")
                 current_travel_time_mean = 0.0
 
             # WYSYŁANIE DANYCH DO W&B
@@ -558,21 +556,12 @@ if __name__ == "__main__":
 
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     
-    # Generowanie ładnych wykresów z Matplotliba 
-    # (Usunięto stare wywołanie, żeby się nie dublowało, i poprawiono ścieżkę na "../results")
-    run_metrics_analysis(
-        env.logger.metrics,
-        exp_id,
-        "../results", 
-        True,
-        dump_config,
-    )
+    run_metrics_analysis(exp_id, results_folder="../results")
 
     # Wysłanie gotowych wykresów do W&B
     import glob
     import os
     
-    # POPRAWKA: szukamy w ../results/ a nie results/
     plot_files = glob.glob(f"../results/{exp_id}/*.png")
     
     if plot_files:

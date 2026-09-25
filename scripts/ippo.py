@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from routerl         import TrafficEnvironment
+from routerl        import TrafficEnvironment
 from tqdm            import tqdm
 
 from baseline_models import BaseLearningModel
@@ -56,9 +56,6 @@ class PPO(BaseLearningModel):
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
             logits = self.policy_net(state_tensor)
-            #logits = torch.clamp(logits, -10, 10)
-            #logits = (logits - logits.min()) / (logits.max() - logits.min())
-            #self.logits = logits
             probs = self.softmax(logits)
         dist = torch.distributions.Categorical(probs)
         if not self.deterministic: action = dist.sample().item()
@@ -83,10 +80,6 @@ class PPO(BaseLearningModel):
             actions_tensor = torch.LongTensor(actions).to(self.device)
             old_log_probs_tensor = torch.FloatTensor(old_log_probs).to(self.device)
             rewards_tensor = torch.FloatTensor(rewards).to(self.device)
-            # print(f"""
-            # States: {states_tensor}, Actions: {actions_tensor},
-            # Old Log Probs: {old_log_probs_tensor}, Rewards: {rewards_tensor}
-            #       """)
 
             logits = self.policy_net(states_tensor)
             probs = self.softmax(logits)
@@ -94,13 +87,11 @@ class PPO(BaseLearningModel):
             new_log_probs = dist.log_prob(actions_tensor)
 
             ratio = torch.exp(new_log_probs - old_log_probs_tensor)
-            #advantage = rewards_tensor
             if self.normalize_advantage: advantage = (rewards_tensor - rewards_tensor.mean()) / (rewards_tensor.std() + 1e-8)
             else: advantage = rewards_tensor
 
             surr1 = ratio * advantage
             surr2 = torch.clamp(ratio, 1 - self.clip_eps, 1 + self.clip_eps) * advantage
-            #loss = -torch.min(surr1, surr2).mean()
             entropy = dist.entropy().mean()
             loss = -torch.min(surr1, surr2).mean() - self.entropy_coef * entropy
 
@@ -145,8 +136,9 @@ if __name__ == "__main__":
     os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
     torch.manual_seed(torch_seed)
-    torch.cuda.manual_seed(torch_seed)
-    torch.cuda.manual_seed_all(torch_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(torch_seed)
+        torch.cuda.manual_seed_all(torch_seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     random.seed(env_seed)
@@ -275,13 +267,28 @@ if __name__ == "__main__":
     env.reset()
     print_agent_counts(env)
 
+    # --- WSTAWKA 1: Inicjalizacja bufora na dane ---
+    collected_sumo_observations = []
+    print("Inicjalizacja bufora na surowe dane SUMO...")
+    # -----------------------------------------------
 
     ### Human learning phase ###
     pbar = tqdm(total=total_episodes, desc="Human learning")
     for episode in range(human_learning_episodes):
-        env.step()
+        env.reset()
+        for agent_id in env.agent_iter():
+            observation, reward, termination, truncation, info = env.last()
+            
+            if termination or truncation:
+                action = None
+            else:
+                # --- WSTAWKA 2A: Zbieranie danych (Human Phase) ---
+                collected_sumo_observations.append(np.array(observation, dtype=np.float32))
+                # Agent ludzki ma swoją wewnętrzną politykę w `env.step()`, 
+                # więc w tej iteracji zazwyczaj wysyłamy None dla ludzi
+                action = None
+            env.step(action)
         pbar.update()
-
 
     # Mutation
     env.mutation(disable_human_learning = not should_humans_adapt, mutation_start_percentile = -1)
@@ -311,6 +318,9 @@ if __name__ == "__main__":
                     agent_lookup[agent_id].model.learn()
                 action = None
             else:
+                # --- WSTAWKA 2B: Zbieranie danych (RL Phase) ---
+                collected_sumo_observations.append(np.array(observation, dtype=np.float32))
+                
                 action = agent_lookup[agent_id].model.act(observation)
                 
             env.step(action)
@@ -359,3 +369,9 @@ if __name__ == "__main__":
     env.stop_simulation()
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     run_metrics_analysis(exp_id, results_folder="../results")
+    
+    # --- WSTAWKA 3: Zrzut danych na dysk ---
+    save_path = os.path.join(records_folder, "surowe_dane_sumo.npy")
+    np.save(save_path, np.array(collected_sumo_observations, dtype=np.float32))
+    print(f"SUKCES! Zapisano {len(collected_sumo_observations)} wektorów do pliku: {save_path}")
+    # ---------------------------------------

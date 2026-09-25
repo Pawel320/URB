@@ -1,3 +1,4 @@
+
 {
     "desc" : 
     [
@@ -10,13 +11,13 @@
     ],
 
     "ratio_machines" : 0.4,
-    "human_learning_episodes" : 200,
-    "test_eps" : 100,
+    "human_learning_episodes" : 50,
+    "test_eps" : 0,
     "should_humans_adapt": false,
     "av_behavior" : "selfish",
     "human_model" : "gawron",
     "human_alpha": 0.2,
     "human_beta": -1.5,
     "human_beta_randomness": 0.1,
-    "human_deterministic": false
+    "human_deterministic": true
 }
