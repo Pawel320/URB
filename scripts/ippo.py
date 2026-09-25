@@ -232,7 +232,7 @@ if __name__ == "__main__":
             },
             "machine_parameters" : {
                 "behavior" : av_behavior,
-                "observation_type" : observations
+                "observation_type" : observation_type
             }
         },
         environment_parameters = {
