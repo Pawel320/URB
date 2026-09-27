@@ -562,13 +562,19 @@ if __name__ == "__main__":
 
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     
-    run_metrics_analysis(exp_id, results_folder="../results")
+    try:
+        run_metrics_analysis(exp_id, results_folder="../results")
+    except Exception as e:
+        print(f"Analiza metryk nie powiodła się: {e}")
 
-    # Wysłanie gotowych wykresów do W&B
+    # Wysłanie gotowych wykresów do W&B z docelowego folderu
     import glob
     import os
     
-    plot_files = glob.glob(f"../results/{exp_id}/*.png")
+    # Skoro wpadają tutaj, to szukamy tylko w tym jednym miejscu
+    plot_files = glob.glob("results/plots/*.png")
+    # (Gdyby skrypt uruchamiał się z innego katalogu i nie widział plików, 
+    # spróbuj "../results/plots/*.png" lub f"../results/{exp_id}/plots/*.png")
     
     if plot_files:
         wandb_images = {}
@@ -577,6 +583,8 @@ if __name__ == "__main__":
             wandb_images[img_name] = wandb.Image(img_path)
             
         wandb.log(wandb_images)
-        print(f"Wysłano gotowe wykresy końcowe do W&B!")
+        print(f"Wysłano gotowe wykresy końcowe do W&B! Znaleziono {len(plot_files)} plików.")
+    else:
+        print("UWAGA: Nie znaleziono żadnych plików PNG w results/plots/!")
 
     wandb.finish()
