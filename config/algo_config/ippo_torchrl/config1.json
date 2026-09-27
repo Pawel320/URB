@@ -1,5 +1,5 @@
 {
-    "agent_frames_per_batch": 20,
+    "agent_frames_per_batch": 2,
     "n_iters": 5,
     "num_epochs": 2,
     "minibatch_size": 256,
