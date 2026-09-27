@@ -475,18 +475,22 @@ if __name__ == "__main__":
                 print(f"Nie udało się pobrać nagrody z tensora: {e}")
                 current_reward_mean = 0.0
 
-            # 2. Czas przejazdu z loggera środowiska (rozszerzone szukanie kluczy)
+            # 2. Czas przejazdu z loggera środowiska 
             base_env = env
             while hasattr(base_env, "env") or hasattr(base_env, "base_env"):
                 base_env = getattr(base_env, "base_env", getattr(base_env, "env", base_env))
             
-            # --- NOWY BLOK POBIERANIA CZASU PODRÓŻY ---
             try:
-                # W RouteRL historie czasów podróży są zazwyczaj trzymane bezpośrednio w klasie środowiska
-                if hasattr(base_env, 'machine_travel_times') and len(base_env.machine_travel_times) > 0:
-                    current_travel_time_mean = float(base_env.machine_travel_times[-1])
-                elif hasattr(base_env, 'mean_travel_times') and len(base_env.mean_travel_times) > 0:
-                    current_travel_time_mean = float(base_env.mean_travel_times[-1])
+                if hasattr(base_env, 'last_episode_travel_times') and base_env.last_episode_travel_times:
+                    # Wyciągamy czasy tylko dla pojazdów autonomicznych (AV)
+                    av_tts = [
+                        d["travel_time"] for d in base_env.last_episode_travel_times 
+                        if d.get("agent_kind") == "AV"
+                    ]
+                    if av_tts:
+                        current_travel_time_mean = sum(av_tts) / len(av_tts)
+                    else:
+                        current_travel_time_mean = 0.0
                 else:
                     current_travel_time_mean = 0.0
             except Exception as e:
@@ -536,11 +540,13 @@ if __name__ == "__main__":
     pbar.close()
     collector.shutdown()
     
+
     # Testing phase
     pbar = tqdm(total=test_eps, desc="Test phase")
     policy.eval() # set the policy into evaluation mode
     for episode in range(test_eps):
-        env.rollout(len(env.machine_agents), policy=policy)
+        # PODMIENIONA LINIA: pozwalamy symulacji dobiec do naturalnego końca
+        env.rollout(100000, policy=policy)
         pbar.update()
     pbar.close()
 

@@ -1,8 +1,8 @@
 {
-    "smooth_by" : 10,
+    "smooth_by" : 1,
     "plot_choices" : "basic",
-    "save_every" : 5,
-    "plot_every" : 10,
+    "save_every" : 2,
+    "plot_every" : 5,
 
     "use_clustered_routes": true,
     "number_of_paths" : 4,
