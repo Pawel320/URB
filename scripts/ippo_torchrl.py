@@ -153,7 +153,7 @@ if __name__ == "__main__":
     wandb.init(
         entity="aintern26coexistence",
         project="Reduce dimensions in a new observation class.", # np. urb-dim-reduction
-        name=f"IPPO_TORCHRL_PCA_{exp_id}",
+        name=f"IPPO_TORCHRL_{exp_id}",
         config=dump_config
     )
 
