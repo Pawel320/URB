@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
     wandb.init(
         entity="aintern26coexistence",
-        project="Reduce dimensions in a new observation class.Reduce dimensions in a new observation class.",
+        project="Reduce dimensions in a new observation class.",
         name=exp_id,
         config=dump_config
     )
