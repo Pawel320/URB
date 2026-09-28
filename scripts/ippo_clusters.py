@@ -521,6 +521,21 @@ if __name__ == "__main__":
     # Finalize the experiment
     pbar.close()
     env.plot_results()
+    
+
+    plot_files = ["travel_times.png", "rewards.png"]  # Możesz tu dodać inne nazwy, jeśli Twoje środowisko je generuje
+    images_to_log = {}
+    
+    for plot_file in plot_files:
+        plot_path = os.path.join(plots_folder, plot_file)
+        if os.path.exists(plot_path):
+            plot_name = f"plots/{plot_file.replace('.png', '')}"
+            images_to_log[plot_name] = wandb.Image(plot_path)
+            
+    if images_to_log:
+        wandb.log(images_to_log)
+    # ---------------------------------------------------------
+
     loss_records = []
     for agent in env.machine_agents:
         for iteration, loss_value in enumerate(agent.model.loss, start=1):
