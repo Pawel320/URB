@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 import numpy as np
+import wandb
 
 from routerl import TrafficEnvironment
 from routerl.keychain import Keychain as kc
@@ -235,6 +236,13 @@ if __name__ == "__main__":
 
     with open(exp_config_path, 'w', encoding='utf-8') as f:
         json.dump(dump_config, f, indent=4)
+
+    wandb.init(
+        entity="aintern26coexistence",
+        project="Reduce dimensions in a new observation class.",
+        name=exp_id,
+        config=dump_config
+    )
 
     simulator_parameters = {
         kc.NETWORK_NAME : network,
@@ -879,13 +887,22 @@ if __name__ == "__main__":
             for loss_value in ppo.loss:
                 losses_file.write(f"{loss_value}\n")
 
-        # add_relative_progress_to_saved_episodes()
-        # env.plot_results()
-        # central_env.close()
-
         central_env.close()  # waits for all pending episode writes
         add_relative_progress_to_saved_episodes()
         env.plot_results()
+
+        #wandb logging of plots
+        plot_files = ["travel_times.png", "rewards.png"]
+        images_to_log = {}
+        
+        for plot_file in plot_files:
+            plot_path = os.path.join(plots_folder, plot_file)
+            if os.path.exists(plot_path):
+                plot_name = f"plots/{plot_file.replace('.png', '')}"
+                images_to_log[plot_name] = wandb.Image(plot_path)
+                
+        if images_to_log:
+            wandb.log(images_to_log)
 
         clear_SUMO_files(
             os.path.join(records_folder, "SUMO_output"),
@@ -902,3 +919,5 @@ if __name__ == "__main__":
         print(
             f"Saved sampled training and complete test step diagnostics to {cluster_diag_path}"
         )
+        
+        wandb.finish()
