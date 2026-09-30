@@ -4,7 +4,7 @@
     "save_every" : 5,
     "plot_every" : 50,
 
-    "observations" : "trip_info_eta",
+    "observation_type" : "trip_info_eta",
 
     "use_clustered_routes": true,
     "number_of_paths" : 4,

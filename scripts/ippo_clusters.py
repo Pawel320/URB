@@ -207,10 +207,13 @@ if __name__ == "__main__":
     params.update(task_params)
     del params["desc"], env_params, task_params
 
-    observation_type = params.get(
-        "observation_type",
-        params.get("observations", "previous_agents_plus_start_time"),
-    )
+    observation_type = params.get("observation_type") or params.get("observations")
+
+    if not observation_type:
+        raise ValueError(
+            "The 'observation_type' parameter is missing in the configuration. "
+            "Please ensure that the environment configuration file includes this parameter."
+        )
     path_gen_workers_value = params.get("path_gen_workers", 4)
 
     use_clustered_routes = params.get("use_clustered_routes", False)
