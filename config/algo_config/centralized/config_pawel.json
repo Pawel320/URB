@@ -5,7 +5,6 @@
     "num_epochs" : 6,
 
     "policy_type" : "rnn",
-    "observation_type" : "",
     "reward_mode" : "transition_tt_fft",
     "rnn_type" : "gru",
 
