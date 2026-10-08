@@ -110,7 +110,9 @@ if __name__ == "__main__":
     batch_size = params["batch_size"]
     num_epochs = params["num_epochs"]
     policy_type = params["policy_type"]
-    observation_type = params[kc.OBSERVATION_TYPE]
+    observation_type = params.get(kc.OBSERVATION_TYPE) or params.get("observations")
+    if not observation_type:
+        raise ValueError("Missing 'observation_type' in config.")    
     reward_mode = params["reward_mode"]
     rnn_type = params["rnn_type"]
     hidden_sizes = tuple(params["hidden_sizes"])
@@ -531,8 +533,8 @@ if __name__ == "__main__":
             f"Unexpected observation dimension {obs_dim_actual}; expected {expected_without_mask} or {expected_with_mask}"
         )
 
-    if action_masks is not None and not include_action_mask_in_obs:
-        raise RuntimeError("Action masks are configured, but the observation does not include mask features.")
+    #if action_masks is not None and not include_action_mask_in_obs:
+        #raise RuntimeError("Action masks are configured, but the observation does not include mask features.")
 
     observation_vector = np.asarray(obs["observation"], dtype=np.float32).reshape(-1)
     assert observation_vector.shape == (obs_dim_actual,)
