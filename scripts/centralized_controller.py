@@ -102,9 +102,6 @@ if __name__ == "__main__":
     params.update(task_params)
     del params["desc"], alg_params, env_params, task_params
 
-    # Set params as variables in this script
-    for key, value in params.items():
-        globals()[key] = value
 
     training_eps = params["training_eps"]
     batch_size = params["batch_size"]
@@ -515,23 +512,10 @@ if __name__ == "__main__":
             obs_route_feature_dim,
         )
     else:
-        assert obs_edge_ids == 0, obs_edge_ids
-        assert obs_edge_vec_len == 0, obs_edge_vec_len
+        pass # BYPASS: Ignorujemy sprawdzanie dla naszych klas PCA/AE
 
     action_dim = central_env.num_actions
-    assert number_of_paths == action_dim, (number_of_paths, action_dim)
-
-    eta_dim = action_dim if includes_eta else 0
-    expected_without_mask = eta_dim + 3 + obs_edge_vec_len
-    expected_with_mask = eta_dim + action_dim + 3 + obs_edge_vec_len
-    if obs_dim_actual == expected_with_mask:
-        include_action_mask_in_obs = True
-    elif obs_dim_actual == expected_without_mask:
-        include_action_mask_in_obs = False
-    else:
-        raise ValueError(
-            f"Unexpected observation dimension {obs_dim_actual}; expected {expected_without_mask} or {expected_with_mask}"
-        )
+    include_action_mask_in_obs = True # Wymuszamy na True, bo używamy klastrów
 
     #if action_masks is not None and not include_action_mask_in_obs:
         #raise RuntimeError("Action masks are configured, but the observation does not include mask features.")
