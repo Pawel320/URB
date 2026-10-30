@@ -11,7 +11,7 @@
     ],
 
     "ratio_machines" : 0.4,
-    "human_learning_episodes" : 50,
+    "human_learning_episodes" : 200,
     "test_eps" : 0,
     "should_humans_adapt": false,
     "av_behavior" : "selfish",
