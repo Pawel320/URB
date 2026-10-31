@@ -14,7 +14,6 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import r2_score
 
 # Ścieżka zahardkowana zgodnie z routerl/environment/observations.py
 RESULTS_DIR = "/home/z1201158/URB_Dim_Reduction/URB/results"
@@ -23,6 +22,13 @@ EPOCHS = 100
 BATCH_SIZE = 256
 LEARNING_RATE = 1e-3
 PATIENCE = 10      # epok bez poprawy R2 i kończymy trening
+
+
+def global_r2(X, X_hat):
+    # R2 GLOBALNE (ważone wariancją) zamiast sklearn r2_score, który uśrednia
+    # osobne R2 per cecha - przy martwych cechach (wariancja ~0 na val)
+    # taka średnia wybija się do ~-1e9 i psuje early stopping.
+    return 1.0 - ((X - X_hat) ** 2).sum() / ((X - X.mean(0)) ** 2).sum()
 
 
 class Autoencoder(nn.Module):
@@ -84,7 +90,7 @@ def main():
         model.eval()
         with torch.no_grad():
             X_val_reconstructed = model(torch.from_numpy(X_val)).numpy()
-        val_r2 = float(r2_score(X_val, X_val_reconstructed))
+        val_r2 = global_r2(X_val, X_val_reconstructed)
         print(f"epoka {epoch:3d}/{args.epochs} | R2 (val) = {val_r2:.4f}")
 
         if val_r2 > best_r2:
@@ -107,7 +113,7 @@ def main():
         f"wektor wejsciowy:      {X_train.shape[1]} cech\n"
         f"latent (wymiar):       {LATENT_DIM}\n"
         f"najlepsza epoka:       {best_epoch}\n"
-        f"R2 rekonstrukcji (val): {best_r2:.4f}\n"
+        f"R2 global (val): {best_r2:.4f}\n"
     )
     print(report)
     with open(os.path.join(args.dir, "ae_report.txt"), "w", encoding="utf-8") as f:

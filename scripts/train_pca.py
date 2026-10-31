@@ -16,7 +16,6 @@ import os
 import joblib
 import numpy as np
 from sklearn.decomposition import PCA
-from sklearn.metrics import r2_score
 
 # Ścieżka zahardkowana zgodnie z routerl/environment/observations.py
 RESULTS_DIR = "/home/z1201158/URB_Dim_Reduction/URB/results"
@@ -46,7 +45,10 @@ def main():
     # X = reduced @ components_ + mean_
     reduced_val = pca.transform(X_val)[:, :K]
     X_val_reconstructed = reduced_val @ pca.components_[:K] + pca.mean_
-    val_r2 = float(r2_score(X_val, X_val_reconstructed))
+    # R2 GLOBALNE (ważone wariancją) zamiast sklearn r2_score, który uśrednia
+    # osobne R2 per cecha - przy martwych cechach (wariancja ~0 na val)
+    # taka średnia wybija się do ~-1e9. Globalne: martwe cechy nie ważą.
+    val_r2 = 1.0 - ((X_val - X_val_reconstructed) ** 2).sum() / ((X_val - X_val.mean(0)) ** 2).sum()
 
     report = (
         "PCA - raport\n"
@@ -55,7 +57,7 @@ def main():
         f"komponentow w modelu:  {pca.n_components_}\n"
         f"wariancja @{K} kom.:   {100 * variance_at_k:.2f}%\n"
         f"komponentow do {VARIANCE:.0%} wariancji: {k_for_target}\n"
-        f"R2 rekonstrukcji (val, przez {K} kom.): {val_r2:.4f}\n"
+        f"R2 global (val, przez {K} kom.): {val_r2:.4f}\n"
     )
     print(report)
 
