@@ -37,6 +37,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 
 from routerl         import TrafficEnvironment
 from tqdm            import tqdm
@@ -799,8 +800,14 @@ def main():
     with open(exp_config_path, 'w', encoding='utf-8') as f:
         json.dump(dump_config, f, indent=4)
 
- 
-    
+    wandb.init(
+        entity="interaction-aware-marl",
+        project="subav",
+        name=exp_id,
+        config=dump_config
+    )
+
+
     # Initialize the environment
     env = TrafficEnvironment(
         seed = env_seed,
@@ -1030,6 +1037,8 @@ def main():
         env.reset()
         episode_rewards = []
         episode_travel_times = []
+        ep_rewards_c0, ep_rewards_c1 = [], []
+        ep_tt_c0, ep_tt_c1 = [], []
         
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
@@ -1048,6 +1057,14 @@ def main():
                 episode_rewards.append(reward)
                 if "travel_time" in info:
                     episode_travel_times.append(info["travel_time"])
+                if is_coop:
+                    ep_rewards_c1.append(reward)
+                    if "travel_time" in info:
+                        ep_tt_c1.append(info["travel_time"])
+                else:
+                    ep_rewards_c0.append(reward)
+                    if "travel_time" in info:
+                        ep_tt_c0.append(info["travel_time"])
             else:
                 if agent_id in agent_lookup:
                     internal_id = agent_to_idx[str_id]
@@ -1079,6 +1096,19 @@ def main():
             coop_model.learn()
             selfish_model.learn()
 
+        metrics = {
+            "episode": human_learning_episodes + episode,
+            "train/loss_coop": coop_model.diagnostics[-1]["loss"] if coop_model.diagnostics else None,
+            "train/loss_selfish": selfish_model.diagnostics[-1]["loss"] if selfish_model.diagnostics else None,
+            "train/reward_mean": float(np.mean(episode_rewards)) if episode_rewards else None,
+            "train/travel_time_mean": float(np.mean(episode_travel_times)) if episode_travel_times else None,
+            "train/reward_mean_c1": float(np.mean(ep_rewards_c1)) if ep_rewards_c1 else None,
+            "train/reward_mean_c0": float(np.mean(ep_rewards_c0)) if ep_rewards_c0 else None,
+            "train/tt_mean_c1": float(np.mean(ep_tt_c1)) if ep_tt_c1 else None,
+            "train/tt_mean_c0": float(np.mean(ep_tt_c0)) if ep_tt_c0 else None,
+        }
+        wandb.log({k: v for k, v in metrics.items() if v is not None})
+
         if episode % plot_every == 0:
             env.plot_results()
         pbar.update()
@@ -1093,6 +1123,8 @@ def main():
         env.reset()
         episode_rewards = []
         episode_travel_times = []
+        ep_rewards_c0, ep_rewards_c1 = [], []
+        ep_tt_c0, ep_tt_c1 = [], []
         
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
@@ -1103,19 +1135,49 @@ def main():
                     episode_rewards.append(reward)
                     if "travel_time" in info:
                         episode_travel_times.append(info["travel_time"])
+                    if is_coop:
+                        ep_rewards_c1.append(reward)
+                        if "travel_time" in info:
+                            ep_tt_c1.append(info["travel_time"])
+                    else:
+                        ep_rewards_c0.append(reward)
+                        if "travel_time" in info:
+                            ep_tt_c0.append(info["travel_time"])
             else:
                 internal_id = agent_to_idx[str(agent_id)]
-                model = coop_model if str(agent_id) in coop_agents_set else selfish_model
+                is_coop = str(agent_id) in coop_agents_set
+                model = coop_model if is_coop else selfish_model
                 action = model.act(observation, agent_id=internal_id)
                 
             env.step(action)
             
-        
+        wandb.log(
+            {
+                "episode": human_learning_episodes + training_eps + episode,
+                "testing/reward_mean": float(np.mean(episode_rewards)) if episode_rewards else None,
+                "testing/travel_time_mean": float(np.mean(episode_travel_times)) if episode_travel_times else None,
+                "testing/reward_mean_c1": float(np.mean(ep_rewards_c1)) if ep_rewards_c1 else None,
+                "testing/reward_mean_c0": float(np.mean(ep_rewards_c0)) if ep_rewards_c0 else None,
+                "testing/tt_mean_c1": float(np.mean(ep_tt_c1)) if ep_tt_c1 else None,
+                "testing/tt_mean_c0": float(np.mean(ep_tt_c0)) if ep_tt_c0 else None,
+            },
+            step=human_learning_episodes + training_eps + episode,
+        )
+
         pbar.update()
     pbar.close()
     
     # Finalize the experiment
     env.plot_results()
+
+    plot_files = ["travel_times.png", "rewards.png"]
+    images_to_log = {}
+    for plot_file in plot_files:
+        plot_path = os.path.join(plots_folder, plot_file)
+        if os.path.exists(plot_path):
+            images_to_log[f"plots/{plot_file.replace('.png', '')}"] = wandb.Image(plot_path)
+    if images_to_log:
+        wandb.log(images_to_log)
 
     loss_records = [
         {"iteration": iteration, "model": "T_coop", "loss": loss_value}
@@ -1147,6 +1209,7 @@ def main():
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
     run_metrics_analysis(exp_id, results_folder=results_root)
     run_cluster_metrics(exp_id, results_folder=results_root)
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
