@@ -26,6 +26,10 @@ excluded_scripts = [
     "clustered_routes.py",
     "generate_clustered_routes.py",
     "centralized_wrapper.py",
+
+    # Dedicated test suites / fixed in dedicated tests
+    "ifppo.py",
+    "subav_ifppo.py",  # test_subav_ifppo.py
 ]
 
 print(f"[DEBUG] Looking for Python scripts in {SCRIPTS_DIR.resolve()}")

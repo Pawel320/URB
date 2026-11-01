@@ -268,3 +268,38 @@ def run_metrics_analysis(exp_id: str, results_folder: str = "../results", verbos
     return True
 
 
+def run_cluster_metrics(exp_id: str, results_folder: str = "../results", verbose: bool = False) -> bool:
+    """
+    Run analysis/cluster_metrics.py for a finished SubAV experiment.
+
+    The helper is intentionally non-failing so experiment scripts do not crash
+    if post-processing fails (it also exits non-zero when the experiment has
+    no agent_clusters.csv grouping file).
+    """
+    metrics_script = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "analysis", "cluster_metrics.py")
+    )
+    results_folder_path = os.path.abspath(results_folder)
+
+    command = [
+        sys.executable,
+        metrics_script,
+        "--id",
+        exp_id,
+        "--results-folder",
+        results_folder_path,
+    ]
+    if verbose:
+        command.extend(["--verbose", "True"])
+
+    print(f"Running cluster metrics analysis for experiment '{exp_id}'...")
+    result = subprocess.run(command, check=False)
+    if result.returncode != 0:
+        print(
+            f"Warning: Cluster metrics analysis failed for experiment '{exp_id}' "
+            f"(exit code {result.returncode})."
+        )
+        return False
+    return True
+
+

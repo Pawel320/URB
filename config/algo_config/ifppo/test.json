@@ -1,0 +1,21 @@
+{
+    "desc" : [
+        "SubAV IF-PPO smoke-test hyperparameters: tiny run, both clusters exercised."
+    ],
+
+    "training_eps" : 10,
+    "update_every" : 4,
+    "lr" : 0.001,
+    "num_epochs" : 2,
+    "batch_size" : 8,
+    "widths" : [16, 16],
+    "clip_eps" : 0.2,
+    "entropy_coef" : 0.1,
+    "value_coef" : 0.5,
+    "gamma" : 0.99,
+
+    "cluster_behaviors" : {
+        "0" : "selfish",
+        "1" : "collaborative"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "desc" : [
+        "SubAV IF-PPO hyperparameters (config2): larger nets, higher lr, less frequent updates."
+    ],
+
+    "training_eps" : 4000,
+
+    "batch_size" : 128,
+    "update_every" : 8,
+    "lr" : 0.001,
+    "num_epochs" : 4,
+    "num_hidden" : 1,
+    "widths" : [128, 128],
+    "clip_eps" : 0.2,
+    "entropy_coef" : 0.005,
+    "value_coef" : 0.5,
+    "gamma" : 0.99
+}
