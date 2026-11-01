@@ -437,37 +437,40 @@ if __name__ == "__main__":
         )
     agent_lookup = {str(agent.id): agent for agent in env.machine_agents}
 
-    # --- ZBIÓRKA DANYCH: surowe wektory stanu krawędzi (dane do PCA/AE) ---
-    edge_vec_len = env.observation_obj.edge_vec_len
-    if edge_vec_len <= 0:
-        raise RuntimeError(
-            f"edge_vec_len = {edge_vec_len} - brak stanu krawędzi do zebrania. "
-            "Upewnij się, że observation_type zwraca surowy stan SUMO."
-        )
-    collected_edge_vectors = []
-    last_edge_vector = None
-    raw_data_path = os.path.join(records_folder, "surowe_dane_sumo.npy")
-    with open(os.path.join(records_folder, "surowe_dane_sumo_meta.json"), "w", encoding="utf-8") as meta_file:
-        json.dump(
-            {
-                "edge_vec_len": int(edge_vec_len),
-                "network": network,
-                "observation_type": observation_type,
-            },
-            meta_file,
-            indent=4,
-        )
-
-    def collect_edge_vector(observation):
-        # Wektor stanu krawędzi jest wspólny dla wszystkich agentów w danym kroku,
-        # więc zapisujemy go tylko wtedy, gdy różni się od poprzedniego (zero duplikatów).
-        global last_edge_vector
-        edge_vector = np.asarray(observation, dtype=np.float32)[-edge_vec_len:]
-        if last_edge_vector is None or not np.array_equal(edge_vector, last_edge_vector):
-            collected_edge_vectors.append(edge_vector)
-            last_edge_vector = edge_vector
-
-    print(f"Zbieranie surowych wektorów stanu krawędzi ({edge_vec_len} cech) do: {raw_data_path}")
+    # --- ZBIÓRKA DANYCH: WYŁĄCZONA (dane surowe są już z ING_DATA_COLLECTION) ---
+    # Żeby zbiórkę przywrócić, odkomentuj ten blok ORAZ: 2 wywołania
+    # collect_edge_vector(observation) w pętlach + oba bloki np.save niżej.
+    #
+    # edge_vec_len = env.observation_obj.edge_vec_len
+    # if edge_vec_len <= 0:
+    #     raise RuntimeError(
+    #         f"edge_vec_len = {edge_vec_len} - brak stanu krawędzi do zebrania. "
+    #         "Upewnij się, że observation_type zwraca surowy stan SUMO."
+    #     )
+    # collected_edge_vectors = []
+    # last_edge_vector = None
+    # raw_data_path = os.path.join(records_folder, "surowe_dane_sumo.npy")
+    # with open(os.path.join(records_folder, "surowe_dane_sumo_meta.json"), "w", encoding="utf-8") as meta_file:
+    #     json.dump(
+    #         {
+    #             "edge_vec_len": int(edge_vec_len),
+    #             "network": network,
+    #             "observation_type": observation_type,
+    #         },
+    #         meta_file,
+    #         indent=4,
+    #     )
+    #
+    # def collect_edge_vector(observation):
+    #     # Wektor stanu krawędzi jest wspólny dla wszystkich agentów w danym kroku,
+    #     # więc zapisujemy go tylko wtedy, gdy różni się od poprzedniego (zero duplikatów).
+    #     global last_edge_vector
+    #     edge_vector = np.asarray(observation, dtype=np.float32)[-edge_vec_len:]
+    #     if last_edge_vector is None or not np.array_equal(edge_vector, last_edge_vector):
+    #         collected_edge_vectors.append(edge_vector)
+    #         last_edge_vector = edge_vector
+    #
+    # print(f"Zbieranie surowych wektorów stanu krawędzi ({edge_vec_len} cech) do: {raw_data_path}")
 
     ### Learning phase ###
     pbar.set_description("AV learning")
@@ -480,7 +483,7 @@ if __name__ == "__main__":
         
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
-            collect_edge_vector(observation)
+            # collect_edge_vector(observation)  # zbiórka danych wyłączona
 
             if termination or truncation:
                 agent_lookup[agent_id].model.push(reward)
@@ -516,8 +519,8 @@ if __name__ == "__main__":
         pbar.update()
 
         # Co kilkanaście epizodów awaryjny zrzut, żeby nie stracić danych przy przerwaniu joba
-        if (episode + 1) % 25 == 0 and collected_edge_vectors:
-            np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
+        # if (episode + 1) % 25 == 0 and collected_edge_vectors:
+        #     np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
     
     
     ### Testing phase ###
@@ -533,7 +536,7 @@ if __name__ == "__main__":
         
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
-            collect_edge_vector(observation)
+            # collect_edge_vector(observation)  # zbiórka danych wyłączona
 
             if termination or truncation:
                 action = None
@@ -562,10 +565,10 @@ if __name__ == "__main__":
     pbar.close()
     env.plot_results()
 
-    # --- ZBIÓRKA DANYCH: finalny zrzut zebranych wektorów ---
-    if collected_edge_vectors:
-        np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
-        print(f"Zapisano {len(collected_edge_vectors)} wektorów stanu krawędzi do: {raw_data_path}")
+    # --- ZBIÓRKA DANYCH: finalny zrzut zebranych wektorów (WYŁĄCZONE) ---
+    # if collected_edge_vectors:
+    #     np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
+    #     print(f"Zapisano {len(collected_edge_vectors)} wektorów stanu krawędzi do: {raw_data_path}")
 
 
     plot_files = ["travel_times.png", "rewards.png"]  # Możesz tu dodać inne nazwy, jeśli Twoje środowisko je generuje
