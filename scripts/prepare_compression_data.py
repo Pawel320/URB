@@ -21,7 +21,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 # Ścieżka zahardkowana zgodnie z routerl/environment/observations.py
-RESULTS_DIR = "/home/z1201158/URB_Dim_Reduction/URB/results"
+RESULTS_DIR = "/scratch/tmp/dorosz/URB_Dim_Reduction/URB/results"
 
 
 def main():

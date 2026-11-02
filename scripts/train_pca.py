@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 # Ścieżka zahardkowana zgodnie z routerl/environment/observations.py
-RESULTS_DIR = "/home/z1201158/URB_Dim_Reduction/URB/results"
+RESULTS_DIR = "/scratch/tmp/dorosz/URB_Dim_Reduction/URB/results"
 K = 35           # tyle komponentów używa runtime (n_components=35)
 VARIANCE = 0.95  # raport: ile komponentów wystarczy do 95% wariancji
 

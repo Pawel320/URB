@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 
 # Ścieżka zahardkowana zgodnie z routerl/environment/observations.py
-RESULTS_DIR = "/home/z1201158/URB_Dim_Reduction/URB/results"
+RESULTS_DIR = "/scratch/tmp/dorosz/URB_Dim_Reduction/URB/results"
 LATENT_DIM = 35    # musi być zgodne z latent_dim=35 w observations.py
 EPOCHS = 100
 BATCH_SIZE = 256
