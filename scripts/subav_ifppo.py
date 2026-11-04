@@ -634,6 +634,31 @@ def main():
     params.update(alg_params)
     params.update(env_params)
     params.update(task_params)
+
+    observation_type = params.get(
+        "observation_type",
+        params.get("observations", "previous_agents_plus_start_time"),
+    )
+
+    # Per-cluster observation types, gated so that existing configs keep using the
+    # single global observation_type. Read from the raw env config so that an
+    # explicitly provided mapping can be told apart from the merged defaults.
+    observation_split = bool(env_params.get("observation_split", False))
+    if observation_split:
+        cluster_observation_types = env_params.get("cluster_observation_types")
+        if not cluster_observation_types:
+            raise ValueError(
+                "observation_split=true requires 'cluster_observation_types' in the env config."
+            )
+        cluster_observation_types = {str(key): value for key, value in cluster_observation_types.items()}
+        for cluster_label in ("0", "1"):
+            if cluster_label not in cluster_observation_types:
+                raise ValueError(
+                    f"cluster_observation_types must define both '0' and '1'; missing '{cluster_label}'."
+                )
+    else:
+        cluster_observation_types = {"0": observation_type, "1": observation_type}
+
     del params["desc"], env_params, task_params
 
     if grouping_path is None:
@@ -650,10 +675,6 @@ def main():
             raise FileNotFoundError(f"Grouping CSV not found: {grouping_path}")
         print(f"Agent grouping (from config): {grouping_path}")
 
-    observation_type = params.get(
-        "observation_type",
-        params.get("observations", "previous_agents_plus_start_time"),
-    )
     path_gen_workers_value = params.get("path_gen_workers", 4)
 
     cluster_behaviors_raw = params.get("cluster_behaviors")
@@ -788,6 +809,8 @@ def main():
     dump_config["use_action_masks"] = action_masks is not None
     dump_config["shuffle"] = shuffle
     dump_config["observation_type"] = observation_type
+    dump_config["observation_split"] = observation_split
+    dump_config["cluster_observation_types"] = cluster_observation_types
     dump_config["path_gen_workers"] = path_gen_workers_value
     dump_config["grouping_file"] = grouping_path
     dump_config["cluster_behaviors"] = cluster_behaviors
@@ -826,7 +849,9 @@ def main():
             },
             "machine_parameters" : {
                 "behavior" : av_behavior,
-                "observation_type" : observation_type
+                "observation_type" : observation_type,
+                "observation_split" : observation_split,
+                "cluster_observation_types" : cluster_observation_types
             }
         },
         environment_parameters = {
@@ -871,16 +896,11 @@ def main():
     # Mutation
     env.mutation(disable_human_learning = not should_humans_adapt, mutation_start_percentile = -1)
     print_agent_counts(env)
-    obs_size = env.observation_space(env.possible_agents[0]).shape[0]
 
-    
     # Set policies for machine agents
     shared_action_space_size = max(agent.action_space_size for agent in env.machine_agents)
     central_extra_size = shared_action_space_size + 1
 
-    central_state_size = (
-    obs_size + central_extra_size
-    )
     agent_to_idx = {str(agent.id): idx for idx, agent in enumerate(env.machine_agents)}
 
     # ------------------------------------------------------------------
@@ -953,6 +973,12 @@ def main():
         agent.cluster_map = machine_cluster_map
         agent.behavior = cluster_behaviors[str(cluster_label)]
         agent.rewards_coefs = agent._get_reward_coefs()
+
+    # Observation objects were built during __init__/mutation(), i.e. before the
+    # grouping CSV was known. Rebuild them now that cluster ids are stamped,
+    # through the same path mutation() itself uses.
+    env.set_cluster_assignment(machine_cluster_map)
+
     print(
         "Per-cluster behaviors: "
         + ", ".join(
@@ -984,6 +1010,26 @@ def main():
             mask_tensor[:agent.action_space_size] = True
             internal_action_masks[idx] = mask_tensor
 
+    # Observation sizes may differ per cluster when observation_split is enabled,
+    # so read them from an agent of each cluster instead of just the first one.
+    obs_size_by_cluster = {}
+    for label in active_labels:
+        agent_id = next(
+            str(agent.id) for agent in env.machine_agents
+            if machine_cluster_map[int(agent.id)] == label
+        )
+        obs_size_by_cluster[label] = env.observation_space(agent_id).shape[0]
+
+    obs_size = obs_size_by_cluster[1]           # T set          -> coop model
+    selfish_obs_size = obs_size_by_cluster[0]   # background AVs -> selfish model
+    central_state_size = obs_size + central_extra_size
+
+    dump_config["obs_size_by_cluster"] = {
+        str(label): int(size) for label, size in obs_size_by_cluster.items()
+    }
+    with open(exp_config_path, 'w', encoding='utf-8') as f:
+        json.dump(dump_config, f, indent=4)
+
     model_params = params.copy()
     model_params.update({
         "state_size": obs_size,
@@ -997,7 +1043,8 @@ def main():
     })
     
     selfish_params = model_params.copy()
-    selfish_params["central_state_size"] = obs_size 
+    selfish_params["state_size"] = selfish_obs_size
+    selfish_params["central_state_size"] = selfish_obs_size
 
     # Two independent models: cooperative (T set) vs selfish (cluster 0).
     coop_model = IFPPOV1(**model_params)

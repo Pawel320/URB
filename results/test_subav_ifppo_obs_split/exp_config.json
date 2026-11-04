@@ -1,0 +1,71 @@
+{
+    "training_eps": 10,
+    "update_every": 4,
+    "lr": 0.001,
+    "num_epochs": 2,
+    "batch_size": 8,
+    "widths": [
+        16,
+        16
+    ],
+    "clip_eps": 0.2,
+    "entropy_coef": 0.1,
+    "value_coef": 0.5,
+    "gamma": 0.99,
+    "cluster_behaviors": {
+        "0": "selfish",
+        "1": "collaborative"
+    },
+    "smooth_by": 10,
+    "plot_choices": "basic",
+    "save_every": 5,
+    "plot_every": 50,
+    "use_clustered_routes": true,
+    "number_of_paths": 4,
+    "path_gen_beta": -5,
+    "num_samples": 10,
+    "observation_type": "trip_info_eta_mask_norm",
+    "observation_split": true,
+    "cluster_observation_types": {
+        "0": "trip_info_eta",
+        "1": "trip_info_eta_mask_norm"
+    },
+    "ratio_machines": 0.05,
+    "human_learning_episodes": 10,
+    "test_eps": 10,
+    "should_humans_adapt": false,
+    "av_behavior": "selfish",
+    "human_model": "gawron",
+    "human_alpha": 0.2,
+    "human_beta": 1.5,
+    "human_beta_randomness": 0.1,
+    "human_deterministic": true,
+    "network": "saint_arnoult",
+    "env_seed": 42,
+    "torch_seed": 42,
+    "route_set": "saint_arnoult-default-kmeans-4",
+    "env_config": "clusters-eta-split",
+    "task_config": "test",
+    "alg_config": "test",
+    "script": "scripts/subav_ifppo.py",
+    "algorithm": "subav_ifppo",
+    "num_agents": 222,
+    "num_machines": 11,
+    "use_action_masks": true,
+    "shuffle": false,
+    "path_gen_workers": 4,
+    "grouping_file": "C:\\Users\\pawel\\AppData\\Local\\Temp\\pytest-of-pawel\\pytest-5\\test_subav_ifppo_execution_wit0\\grouping_test_subav_ifppo_obs_split.csv",
+    "t_reward_pooling": false,
+    "t_group_reward_scope": "t_cluster_only",
+    "critic_scope": "balanced_interaction_group_v1",
+    "critic_context": "local observation + same-OD route fractions within assigned group + group progress",
+    "num_active_clusters": 2,
+    "active_cluster_sizes": [
+        6,
+        5
+    ],
+    "obs_size_by_cluster": {
+        "0": 7,
+        "1": 11
+    }
+}

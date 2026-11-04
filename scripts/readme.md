@@ -28,8 +28,7 @@ CSV (columns ```agent_id``` and ```cluster``` (or ```cluster_id```), labels 0/1)
 
 Reward coefficients come from the environment (RouteRL behaviors stamped per cluster after
 mutation); the collaborative "group" term is scoped to T members only via a runtime patch of
-```MachineAgent.get_reward``` (RouteRL-URB itself is unmodified). There is no script-side
-reward pooling.
+```MachineAgent.get_reward```. There is no script-side reward pooling.
 
 Usage (from ```scripts/```):
 
@@ -47,6 +46,15 @@ python subav_ifppo.py --id subav_run_1 --alg-conf config1 --task-conf subav_40 \
 * Per-cluster behaviors are configured with ```cluster_behaviors``` (e.g. in the task config):
   ```{"0": "selfish", "1": "collaborative"}```.
 * Default env config: ```--env-conf clusters-eta-mask``` (ETA masked-normalized observations).
+* Per-cluster observations: set ```"observation_split": true``` in the env config to make
+  ```cluster_observation_types``` mandatory, e.g.
+  ```{"0": "trip_info_eta", "1": "trip_info_eta_mask_norm"}``` (both labels required).
+  Each cluster then gets its own observation object, so normalization and action masking
+  happen only for the clusters whose type calls for them, and observation sizes may differ
+  between clusters (recorded per run as ```obs_size_by_cluster``` in
+  ```results/<id>/exp_config.json```). With ```observation_split``` absent or false a single
+  global ```observation_type``` is used, exactly as before. Example:
+  ```--env-conf clusters-eta-split```.
 * Outputs besides the usual ones: ```results/<id>/agent_clusters.csv``` (grouping used),
   ```results/<id>/metrics/ClusterMetrics.csv``` + ```metrics/plots/tt per cluster.png```
   (mirrored to ```plots/tt per cluster.png``` beside the environment plots),
