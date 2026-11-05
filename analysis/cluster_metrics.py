@@ -6,7 +6,7 @@ and produces:
 
   - metrics/ClusterMetrics.csv  : per-episode mean travel time for the T set
     (AVs with cluster 1), cluster-0 AVs, all AVs, humans and the whole city.
-  - metrics/plots/tt per cluster.png : the same quantities over episodes.
+  - metrics/plots/tt_per_cluster.png : the same quantities over episodes.
 
 Modeled after analysis/metrics.py; run standalone or via
 scripts/utils.py:run_cluster_metrics after a SubAV experiment.
@@ -216,22 +216,25 @@ if __name__ == "__main__":
     else:
         if verbose:
             print("Generating plots...")
+
         plot_vector_values(
             plot_df,
             plot_path,
-            "tt per cluster",
+            "tt_per_cluster",  # Zmiana ze spacji na podłogi
             "Mean travel time",
         )
+        
+        original_plot_path = os.path.join(plot_path, "tt_per_cluster.png")
         if verbose:
-            print(f"Saved plot to {os.path.join(plot_path, 'tt per cluster.png')}")
+            print(f"Saved plot to {original_plot_path}")
 
         # Mirror the plot next to the environment plots (results/<id>/plots/)
         # so the per-cluster travel times sit beside travel_times.png.
         env_plots_path = os.path.join(data_path, "plots")
-        mirrored_plot_path = os.path.join(env_plots_path, "tt per cluster.png")
+        mirrored_plot_path = os.path.join(env_plots_path, "tt_per_cluster.png")
         try:
             os.makedirs(env_plots_path, exist_ok=True)
-            shutil.copy2(os.path.join(plot_path, "tt per cluster.png"), mirrored_plot_path)
+            shutil.copy2(original_plot_path, mirrored_plot_path)
             if verbose:
                 print(f"Mirrored plot to {mirrored_plot_path}")
         except OSError as e:

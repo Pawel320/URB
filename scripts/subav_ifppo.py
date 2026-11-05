@@ -1217,7 +1217,7 @@ def main():
     # Finalize the experiment
     env.plot_results()
 
-    plot_files = ["travel_times.png", "rewards.png"]
+    plot_files = ["travel_times.png", "rewards.png", "tt_per_cluster.png"]
     images_to_log = {}
     for plot_file in plot_files:
         plot_path = os.path.join(plots_folder, plot_file)
