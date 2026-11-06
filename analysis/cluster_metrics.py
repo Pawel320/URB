@@ -22,6 +22,7 @@ import pandas as pd
 
 from metrics import get_episodes
 from metrics import plot_vector_values
+import matplotlib.pyplot as plt
 
 
 NUMERIC_COLUMNS = ["travel_time", "id", "action", "origin", "destination", "start_time", "reward"]
@@ -217,12 +218,33 @@ if __name__ == "__main__":
         if verbose:
             print("Generating plots...")
 
-        plot_vector_values(
-            plot_df,
-            plot_path,
-            "tt_per_cluster",  # Zmiana ze spacji na podłogi
-            "Mean travel time",
-        )
+        plt.figure(figsize=(15, 15), layout='tight')
+        
+        episodes = plot_df["episode"]
+        for col in MEAN_COLUMNS:
+            if col in plot_df.columns:
+                label_name = col.replace("mean_TT_", "")
+                plt.plot(episodes, plot_df[col], label=label_name, linewidth=3)
+                
+        phases = [0, 100] 
+        phase_names = ["Human learning", "Mutation - Machine learning"]
+        phase_colors = ["red", "blue"] 
+        
+        for phase_idx, phase in enumerate(phases):
+            color = phase_colors[phase_idx % len(phase_colors)]
+            plt.axvline(x=phase, label=phase_names[phase_idx], linestyle='--', color=color, linewidth=3)
+            
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.xlabel('Episode', fontsize=12)
+        plt.ylabel('Mean Travel Time', fontsize=12)
+        plt.grid(True, axis='y')
+        plt.title('Mean Travel Times Over Episodes per Cluster', fontsize=16, fontweight='bold')
+        plt.legend(fontsize=12)
+        
+        original_plot_path = os.path.join(plot_path, "tt_per_cluster.png")
+        plt.savefig(original_plot_path)
+        plt.close()
         
         original_plot_path = os.path.join(plot_path, "tt_per_cluster.png")
         if verbose:
