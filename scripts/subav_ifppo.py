@@ -1214,17 +1214,8 @@ def main():
         pbar.update()
     pbar.close()
     
-    # Finalize the experiment
+# Finalize the experiment
     env.plot_results()
-
-    plot_files = ["travel_times.png", "rewards.png", "tt_per_cluster.png"]
-    images_to_log = {}
-    for plot_file in plot_files:
-        plot_path = os.path.join(plots_folder, plot_file)
-        if os.path.exists(plot_path):
-            images_to_log[f"plots/{plot_file.replace('.png', '')}"] = wandb.Image(plot_path)
-    if images_to_log:
-        wandb.log(images_to_log)
 
     loss_records = [
         {"iteration": iteration, "model": "T_coop", "loss": loss_value}
@@ -1254,8 +1245,19 @@ def main():
 
     env.stop_simulation()
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
+    
     run_metrics_analysis(exp_id, results_folder=results_root)
     run_cluster_metrics(exp_id, results_folder=results_root)
+
+    plot_files = ["travel_times.png", "rewards.png", "tt_per_cluster.png"]
+    images_to_log = {}
+    for plot_file in plot_files:
+        plot_path = os.path.join(plots_folder, plot_file)
+        if os.path.exists(plot_path):
+            images_to_log[f"plots/{plot_file.replace('.png', '')}"] = wandb.Image(plot_path)
+    if images_to_log:
+        wandb.log(images_to_log)
+
     wandb.finish()
 
 if __name__ == "__main__":
