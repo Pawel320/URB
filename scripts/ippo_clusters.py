@@ -17,18 +17,20 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import wandb
 
 from routerl         import TrafficEnvironment
 from tqdm            import tqdm
 
 from baseline_models import BaseLearningModel
 from iql             import Network
+from utils           import add_model_snapshot_argument
 from utils           import clear_SUMO_files
+from utils           import model_snapshot_path
 from utils           import print_agent_counts
 from utils           import run_metrics_analysis
 from utils           import save_loss_records
 from utils           import script_path_for_config
+from utils           import should_save_model_snapshot
 
 from clustered_routes import ClusteredRoutesLoader, resolve_route_set
 
@@ -145,6 +147,7 @@ class PPO(BaseLearningModel):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', type=str, required=True)
+    parser.add_argument('--project', type=str, default=None)
     parser.add_argument('--env-conf', type=str, default="clusters")
     parser.add_argument('--task-conf', type=str, required=True)
     parser.add_argument('--alg-conf', type=str, required=True)
@@ -158,7 +161,10 @@ if __name__ == "__main__":
         help="Named route-set subdirectory. Uses the network default when omitted.",
     )
     parser.add_argument("--shuffle", action="store_true", default=False)
+    parser.add_argument('--skip-metrics', action='store_true', default=False)
+    add_model_snapshot_argument(parser)
     args = parser.parse_args()
+    
     ALGORITHM = "ippo"
     exp_id = args.id
     alg_config = args.alg_conf
@@ -169,6 +175,8 @@ if __name__ == "__main__":
     torch_seed = args.torch_seed
     requested_route_set = args.route_set
     shuffle = args.shuffle
+    save_model_every = args.save_model_every
+    
     print("### STARTING EXPERIMENT ###")
     print(f"Algorithm: {ALGORITHM.upper()}")
     print(f"Experiment ID: {exp_id}")
@@ -179,6 +187,7 @@ if __name__ == "__main__":
     print(f"Task config: {task_config}")
     print(f"Requested route set: {requested_route_set or 'network default'}")
     print(f"Shuffle: {shuffle}")
+    print(f"Metrics will {'NOT ' if args.skip_metrics else ''}be computed after the experiment.\n")
 
     os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
     logging.getLogger("matplotlib").setLevel(logging.ERROR)
@@ -207,13 +216,10 @@ if __name__ == "__main__":
     params.update(task_params)
     del params["desc"], env_params, task_params
 
-    observation_type = params.get("observation_type") or params.get("observations")
-
-    if not observation_type:
-        raise ValueError(
-            "The 'observation_type' parameter is missing in the configuration. "
-            "Please ensure that the environment configuration file includes this parameter."
-        )
+    observation_type = params.get(
+        "observation_type",
+        params.get("observations", "previous_agents_plus_start_time"),
+    )
     path_gen_workers_value = params.get("path_gen_workers", 4)
 
     use_clustered_routes = params.get("use_clustered_routes", False)
@@ -264,6 +270,8 @@ if __name__ == "__main__":
     # Dump exp config to records
     exp_config_path = os.path.join(records_folder, "exp_config.json")
     dump_config = params.copy()
+    if args.project is not None:
+        dump_config["project"] = args.project
 
     # Load pre-generated clustered routes and their per-OD action masks.
     configured_number_of_paths = number_of_paths
@@ -340,15 +348,11 @@ if __name__ == "__main__":
     dump_config["shuffle"] = shuffle
     dump_config["observation_type"] = observation_type
     dump_config["path_gen_workers"] = path_gen_workers_value
+    if save_model_every is not None:
+        dump_config["save_model_every"] = save_model_every
     with open(exp_config_path, 'w', encoding='utf-8') as f:
         json.dump(dump_config, f, indent=4)
 
-    wandb.init(
-        entity="aintern26coexistence",
-        project="Reduce dimensions in a new observation class.",
-        name=exp_id,
-        config=dump_config
-    )
     
     # Initialize the environment
     env = TrafficEnvironment(
@@ -436,154 +440,64 @@ if __name__ == "__main__":
             action_mask=mask
         )
     agent_lookup = {str(agent.id): agent for agent in env.machine_agents}
-
-    # --- ZBIÓRKA DANYCH: WYŁĄCZONA (dane surowe są już z ING_DATA_COLLECTION) ---
-    # Żeby zbiórkę przywrócić, odkomentuj ten blok ORAZ: 2 wywołania
-    # collect_edge_vector(observation) w pętlach + oba bloki np.save niżej.
-    #
-    # edge_vec_len = env.observation_obj.edge_vec_len
-    # if edge_vec_len <= 0:
-    #     raise RuntimeError(
-    #         f"edge_vec_len = {edge_vec_len} - brak stanu krawędzi do zebrania. "
-    #         "Upewnij się, że observation_type zwraca surowy stan SUMO."
-    #     )
-    # collected_edge_vectors = []
-    # last_edge_vector = None
-    # raw_data_path = os.path.join(records_folder, "surowe_dane_sumo.npy")
-    # with open(os.path.join(records_folder, "surowe_dane_sumo_meta.json"), "w", encoding="utf-8") as meta_file:
-    #     json.dump(
-    #         {
-    #             "edge_vec_len": int(edge_vec_len),
-    #             "network": network,
-    #             "observation_type": observation_type,
-    #         },
-    #         meta_file,
-    #         indent=4,
-    #     )
-    #
-    # def collect_edge_vector(observation):
-    #     # Wektor stanu krawędzi jest wspólny dla wszystkich agentów w danym kroku,
-    #     # więc zapisujemy go tylko wtedy, gdy różni się od poprzedniego (zero duplikatów).
-    #     global last_edge_vector
-    #     edge_vector = np.asarray(observation, dtype=np.float32)[-edge_vec_len:]
-    #     if last_edge_vector is None or not np.array_equal(edge_vector, last_edge_vector):
-    #         collected_edge_vectors.append(edge_vector)
-    #         last_edge_vector = edge_vector
-    #
-    # print(f"Zbieranie surowych wektorów stanu krawędzi ({edge_vec_len} cech) do: {raw_data_path}")
-
+    
+    
     ### Learning phase ###
     pbar.set_description("AV learning")
     os.makedirs(plots_folder, exist_ok=True)
     for episode in range(training_eps):
         env.reset()
-        
-        episode_rewards = []
-        episode_travel_times = []
-        
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
-            # collect_edge_vector(observation)  # zbiórka danych wyłączona
-
+            
             if termination or truncation:
                 agent_lookup[agent_id].model.push(reward)
                 if episode % update_every == 0:
                     agent_lookup[agent_id].model.learn()
                 action = None
-                
-                episode_rewards.append(reward)
-                if "travel_time" in info:
-                    episode_travel_times.append(info["travel_time"])
             else:
                 action = agent_lookup[agent_id].model.act(observation)
                 
             env.step(action)
-        
-        episode_losses = [agent.model.loss[-1] for agent in env.machine_agents if len(agent.model.loss) > 0]
-        episode_entropies = [agent.model.entropy_coef for agent in env.machine_agents]
-        
-        metrics = {"episode": episode + human_learning_episodes}
-        if episode_losses:
-            metrics["train/avg_loss"] = sum(episode_losses) / len(episode_losses)
-        if episode_entropies:
-            metrics["train/avg_entropy_coef"] = sum(episode_entropies) / len(episode_entropies)
+
+        completed_episode = episode + 1
+        if should_save_model_snapshot(completed_episode, training_eps, save_model_every):
+            torch.save(
+                {
+                    "training_episode": completed_episode,
+                    "models": {
+                        str(agent.id): agent.model.policy_net.state_dict()
+                        for agent in env.machine_agents
+                    },
+                },
+                model_snapshot_path(records_folder, completed_episode, "pt"),
+            )
             
-        metrics["train/reward_sum"] = float(np.sum(episode_rewards))
-        metrics["train/reward_mean"] = float(np.mean(episode_rewards))
-        metrics["train/travel_time_mean"] = float(np.mean(episode_travel_times)) if episode_travel_times else 0.0
-            
-        wandb.log(metrics)
-        
         if episode % plot_every == 0:
             env.plot_results()
         pbar.update()
-
-        # Co kilkanaście epizodów awaryjny zrzut, żeby nie stracić danych przy przerwaniu joba
-        # if (episode + 1) % 25 == 0 and collected_edge_vectors:
-        #     np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
     
     
     ### Testing phase ###
     for agent in env.machine_agents:
-            agent.model.policy_net.eval()
-            agent.model.deterministic = True
-            
+        agent.model.policy_net.eval()
+        agent.model.deterministic = True
+        
     pbar.set_description("Testing")
     for episode in range(test_eps):
         env.reset()
-        episode_rewards = []
-        episode_travel_times = []
-        
         for agent_id in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
-            # collect_edge_vector(observation)  # zbiórka danych wyłączona
-
             if termination or truncation:
                 action = None
-                episode_rewards.append(reward)
-                if "travel_time" in info:
-                    episode_travel_times.append(info["travel_time"])
             else:
                 action = agent_lookup[agent_id].model.act(observation)
-                
             env.step(action)
-            
-        wandb.log(
-            {
-                "episode": human_learning_episodes + training_eps + episode,
-                "testing/reward_sum": float(np.sum(episode_rewards)),
-                "testing/reward_mean": float(np.mean(episode_rewards)),
-                "testing/travel_time_mean": float(np.mean(episode_travel_times)) if episode_travel_times else 0.0,
-                "testing/travel_time_sum": float(np.sum(episode_travel_times)) if episode_travel_times else 0.0,
-            },
-            step=human_learning_episodes + training_eps + episode,
-        )
-        
         pbar.update()
     
     # Finalize the experiment
     pbar.close()
     env.plot_results()
-
-    # --- ZBIÓRKA DANYCH: finalny zrzut zebranych wektorów (WYŁĄCZONE) ---
-    # if collected_edge_vectors:
-    #     np.save(raw_data_path, np.array(collected_edge_vectors, dtype=np.float32))
-    #     print(f"Zapisano {len(collected_edge_vectors)} wektorów stanu krawędzi do: {raw_data_path}")
-
-
-    plot_files = ["travel_times.png", "rewards.png"]  # Możesz tu dodać inne nazwy, jeśli Twoje środowisko je generuje
-    images_to_log = {}
-    
-    for plot_file in plot_files:
-        plot_path = os.path.join(plots_folder, plot_file)
-        if os.path.exists(plot_path):
-            plot_name = f"plots/{plot_file.replace('.png', '')}"
-            images_to_log[plot_name] = wandb.Image(plot_path)
-            
-    if images_to_log:
-        wandb.log(images_to_log)
-    # ---------------------------------------------------------
-
     loss_records = []
     for agent in env.machine_agents:
         for iteration, loss_value in enumerate(agent.model.loss, start=1):
@@ -602,5 +516,5 @@ if __name__ == "__main__":
 
     env.stop_simulation()
     clear_SUMO_files(os.path.join(records_folder, "SUMO_output"), os.path.join(records_folder, "episodes"), remove_additional_files=True)
-    run_metrics_analysis(exp_id, results_folder="../results")
-    wandb.finish()
+    if not args.skip_metrics:
+        run_metrics_analysis(exp_id, results_folder="../results")
