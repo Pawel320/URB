@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 
 BINARY_CSV_PATH = "influence/binary_influence_matrix.csv"
@@ -81,30 +82,76 @@ def find_optimal_subgraph_T(binary_matrix: np.ndarray, alpha: float, beta: float
 
 
 if __name__ == "__main__":
+
     # 1. Wczytanie macierzy binarnej
     df_binary = pd.read_csv(BINARY_CSV_PATH, index_col=0)
     agent_ids = df_binary.index.astype(int).values
     B_matrix = df_binary.values
 
     # 2. Uruchomienie algorytmu szukającego zbioru T
-    optimal_T_mask = find_optimal_subgraph_T(B_matrix, alpha=ALPHA, beta=BETA, max_k=MAX_K)
 
-    # 3. Wyliczenie finalnych statystyk dla znalezionego zbioru
-    final_score, int_wew, int_zew = calculate_objective_score(B_matrix, optimal_T_mask, ALPHA, BETA)
-    selected_agents_count = optimal_T_mask.sum()
+    GRID_PARAMS = [
+    # (alpha, beta, max_k)
 
-    print("=== WYNIK OPTYMALIZACJI ZBIORU T ===")
-    print(f"Parametry:                     ALPHA={ALPHA}, BETA={BETA}, MAX_K={MAX_K}")
-    print(f"Liczba aut w zbiorze T:        {selected_agents_count} / {len(agent_ids)}")
-    print(f"Interakcje wewnętrzne (Wew):   {int_wew}")
-    print(f"Interakcje zewnętrzne (Zew):   {int_zew}")
-    print(f"Wartość funkcji celu J(T):     {final_score:.2f}")
-    print("====================================")
+    # ==========================================
+    # CZĘŚĆ 1: Zamrożona ALPHA = 1.0, zmienna BETA
+    # ==========================================
+    (1.0, 0.05, 50),
+    (1.0, 0.20, 50),
+    (1.0, 0.50, 50),
+    (1.0, 0.70, 50),
+    (1.0, 1.0, 50),
 
-    # 4. Eksport do formatu zgodnego z SubAV (agent_id, cluster)
-    clusters_df = pd.DataFrame({
-        "agent_id": agent_ids,
-        "cluster": optimal_T_mask.astype(int)  # 1 = zbiór T (cooperative), 0 = reszta (selfish)
-    })
-    clusters_df.to_csv(OUTPUT_CLUSTERS_CSV_PATH, index=False)
-    print(f"Zapisano podział klastrów do:  {OUTPUT_CLUSTERS_CSV_PATH}")
+    (1.0, 0.05, 100),
+    (1.0, 0.20, 100),
+    (1.0, 0.50, 100),
+    (1.0, 0.70, 100),
+    (1.0, 1.0, 100),
+
+    (1.0, 0.05, 400),
+    (1.0, 0.20, 400),
+    (1.0, 0.50, 400),
+    (1.0, 0.70, 400),
+    (1.0, 1.0, 400),
+
+    (1.0, 0.05, 1035),
+    (1.0, 0.20, 1035),
+    (1.0, 0.50, 1035),
+    (1.0, 0.70, 1035),
+    (1.0, 1.0, 1035),
+
+    # ==========================================
+    # CZĘŚĆ 2: Zamrożona BETA = 1.0, zmienna ALPHA
+    # (pominięto 1.0, 1.0, aby nie dublować plików z Części 1)
+    # ==========================================
+    (0.05, 1.0, 50),
+    (0.20, 1.0, 50),
+    (0.50, 1.0, 50),
+    (0.70, 1.0, 50),
+
+    (0.05, 1.0, 100),
+    (0.20, 1.0, 100),
+    (0.50, 1.0, 100),
+    (0.70, 1.0, 100),
+
+    (0.05, 1.0, 400),
+    (0.20, 1.0, 400),
+    (0.50, 1.0, 400),
+    (0.70, 1.0, 400),
+
+    (0.05, 1.0, 1035),
+    (0.20, 1.0, 1035),
+    (0.50, 1.0, 1035),
+    (0.70, 1.0, 1035),
+]
+
+    os.makedirs("config/groupings/grid", exist_ok=True)
+    for alpha, beta, max_k in GRID_PARAMS:
+        mask = find_optimal_subgraph_T(B_matrix, alpha=alpha, beta=beta, max_k=max_k)
+        score, w, z = calculate_objective_score(B_matrix, mask, alpha, beta)
+        
+        fname = f"ingolstadt_custom2_a{alpha}_b{beta}_k{max_k}.csv"
+        pd.DataFrame({"agent_id": agent_ids, "cluster": mask.astype(int)}).to_csv(
+            f"config/groupings/grid/{fname}", index=False
+        )
+        print(f"{fname} -> |T|={mask.sum()}, Wew={w}, Zew={z}, J(T)={score:.2f}")
